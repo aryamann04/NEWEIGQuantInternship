@@ -1,9 +1,6 @@
-import numpy as np
 import pandas as pd
-import yfinance as yf
 from statsmodels.tsa.stattools import coint
-from PreSelectionTests import clean_price_data, pairs_measures, rank_pairs, ratio_var
-
+from PreSelectionTests import clean_price_data, ratio_var
 
 def coint_test(pairs):
     cointegrated_pairs = []
@@ -11,10 +8,8 @@ def coint_test(pairs):
 
     for pair_num, (ticker1, ticker2) in pairs.items():
         try:
-            # Clean data
             data_i, data_j = clean_price_data(ticker1, ticker2)
 
-            # Perform cointegration test
             p_value = coint(data_i, data_j)[1]
 
             if p_value < 0.03:
@@ -30,7 +25,7 @@ def coint_test(pairs):
     return cointegrated_pairs
 
 def rank_var(pairs_data):
-    # Create a DataFrame from the input data
+
     df = pd.DataFrame(pairs_data, columns=['Ticker 1', 'Ticker 2', 'Cointegration Test P-Value', 'Ranking'])
 
     df['Ratio Variance'] = df.apply(lambda row: ratio_var(row['Ticker 1'], row['Ticker 2']), axis=1)
