@@ -107,11 +107,24 @@ def profit(trades_df, price_df):
     return trades_df
 pd.set_option('display.max_rows', None)  # Show all rows
 
+def sharpe(profit_df):
+    #define risk free rate as current 7y treasury yield
+    rf = 4.17
+
+    profit_df['Date1'] = pd.to_datetime(profit_df['Date1'])
+    profit_df['Year'] = profit_df['Date1'].dt.year
+    annual_returns = profit_df.groupby('Year')['Cumulative_Return'].last().pct_change() * 100
+    if 2017 in profit_df['Year'].unique():
+         annual_returns.loc[2017] = (profit_df.loc[profit_df['Year'] == 2017, 'Cumulative_Return'].iloc[-1] - 1) * 100
+    excess_returns = annual_returns - rf
+    sharpe_ratio = excess_returns.mean() / excess_returns.std()
+
+    return sharpe_ratio
 
 #results from screening and pre-selection/cointegration tests
 data = {
-    'Ticker 1': ['CEG', 'IBM', 'KLAC', 'ETN', 'ADI', 'IEX', 'LH', 'AMGN', 'CTAS', 'IBM', 'STZ', 'NSC', 'DOV', 'ANET', 'AME', 'NDSN', 'DHR', 'LIN', 'CTAS', 'DRI'],
-    'Ticker 2': ['MAA', 'VRSN', 'NDSN', 'JBL', 'ODFL', 'MSCI', 'QCOM', 'RSG', 'MOH', 'SYK', 'HUBB', 'ZBRA', 'MSFT', 'GWW', 'TSCO', 'TMUS', 'SHW', 'WMT', 'PGR', 'HON'],
+    'Ticker 1': ['MLM', 'IBM', 'KLAC', 'ETN', 'ADI', 'IEX', 'LH', 'AMGN', 'CTAS', 'IBM', 'STZ', 'NSC', 'DOV', 'ANET', 'AME', 'NDSN', 'DHR', 'LIN', 'CTAS', 'DRI'],
+    'Ticker 2': ['PH', 'VRSN', 'NDSN', 'JBL', 'ODFL', 'MSCI', 'QCOM', 'RSG', 'MOH', 'SYK', 'HUBB', 'ZBRA', 'MSFT', 'GWW', 'TSCO', 'TMUS', 'SHW', 'WMT', 'PGR', 'HON'],
     'Ratio Variance': [0.005718, 0.005133, 0.004253, 0.004090, 0.003839, 0.003498, 0.003237, 0.002821, 0.002727, 0.002554, 0.002547, 0.002400, 0.002009, 0.001832, 0.001695, 0.001329, 0.001023, 0.000782, 0.000750, 0.000740],
     'Cointegration Test P-Value': [0.026953, 0.003023, 0.000741, 0.011188, 0.001841, 0.018063, 0.004475, 0.024894, 0.015033, 0.018365, 0.016497, 0.005069, 0.017830, 0.013301, 0.015155, 0.007882, 0.027492, 0.026370, 0.014683, 0.024686],
     'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
@@ -119,28 +132,33 @@ data = {
 
 ranked_df = pd.DataFrame(data)
 df = generate_dataframes(ranked_df)
-total = 0
+
+#parameters for signal generation
 z = 1.1
-ma = 200
+ma = 25
 print("critical_z = ", z)
 print("ma = ", ma)
+
+total = 0
+total_sharpe = 0
 for idx, df in enumerate(df):
 
     signals_df, paired_trades = generate_signals(df, z, ma)
     profit_df = profit(paired_trades, df)
-
     ticker1_name = df['Ticker 1'].iloc[0]
     ticker2_name = df['Ticker 2'].iloc[0]
-
     percent = (profit_df['Cumulative_Return'].iloc[-1] - 1)*100
     total += percent
 
     print(f"{idx + 1}  {ticker1_name}/{ticker2_name}: {percent:.2f}% ({((percent/100 + 1) ** (1/7) - 1) * 100:.2f}%)")
+    sharpe_ratio = sharpe(profit_df)
+    total_sharpe += sharpe_ratio
+    print(f"Sharpe Ratio: {sharpe_ratio:.3f}")
 
 print("*"*50)
 print(f"Average Return Across 20 Holdings: {total/20:.2f}%")
 print(f"CAGR: {(((total/20)/100 + 1) ** (1/7) - 1) * 100:.2f}%")
-
+print(f"Average Sharpe Ratio: {total_sharpe/20:.3f}")
 
 
 
