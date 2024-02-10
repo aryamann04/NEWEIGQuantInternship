@@ -1,13 +1,8 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from CointegrationTests import rank_var
 from PreSelectionTests import clean_price_data
 
-results = [('ADI', 'AZO', 0.002674, 76)]
-ranked_df = rank_var(results)
-
-# rank_var output as input
 def generate_dataframes(df):
     dataframes = []
 
@@ -17,37 +12,37 @@ def generate_dataframes(df):
 
         if data_i is not None and data_j is not None:
 
-            price_ratio = data_i / data_j
             raw_price_data1 = yf.download(ticker1, start='2017-01-01', end='2024-01-01')['Close']
             raw_price_data2 = yf.download(ticker2, start='2017-01-01', end='2024-01-01')['Close']
+
+            common_dates = raw_price_data1.index.intersection(raw_price_data2.index)
+            raw_price_data1 = raw_price_data1[common_dates]
+            raw_price_data2 = raw_price_data2[common_dates]
 
             result_df = pd.DataFrame({
                 'Ticker 1': [ticker1] * len(data_i),
                 'Ticker 2': [ticker2] * len(data_j),
-                'Date': data_i.index,
+                'Date': raw_price_data1.index,
                 'Raw Price Data 1': raw_price_data1,
                 'Raw Price Data 2': raw_price_data2,
-                'Cleaned Price Data 1': data_i.values,
-                'Cleaned Price Data 2': data_j.values,
-                'Price Ratio': price_ratio.values,
             })
 
             dataframes.append(result_df)
 
     return dataframes
 
-def generate_signals(df_example):
+def generate_signals(df, z, ma):
 
-    ticker1_ts = df_example['Raw Price Data 1']
-    ticker2_ts = df_example['Raw Price Data 2']
+    ticker1_ts = df['Raw Price Data 1']
+    ticker2_ts = df['Raw Price Data 2']
 
     ratios = ticker1_ts / ticker2_ts
-    ratios_mean = ratios.rolling(window=50, min_periods=1, center=False).mean()
-    ratios_std = ratios.rolling(window=50, min_periods=1, center=False).std()
+    ratios_mean = ratios.rolling(window=ma, min_periods=1, center=False).mean()
+    ratios_std = ratios.rolling(window=ma, min_periods=1, center=False).std()
     z_scores = (ratios - ratios_mean) / ratios_std
     ratio_std = z_scores.copy()
 
-    z_scores = np.where(z_scores > 1.5, 1, np.where(z_scores < -1.5, -1, 0))
+    z_scores = np.where(z_scores > z, 1, np.where(z_scores < -1*z, -1, 0))
 
     signals_df = pd.DataFrame(index=ticker1_ts.index)
     signals_df['signal_ticker1'] = z_scores * -1
@@ -113,11 +108,38 @@ def profit(trades_df, price_df):
 pd.set_option('display.max_rows', None)  # Show all rows
 
 
-df = generate_dataframes(ranked_df)[0]
-signals_df, paired_trades = generate_signals(df)
+#results from screening and pre-selection/cointegration tests
+data = {
+    'Ticker 1': ['CEG', 'IBM', 'KLAC', 'ETN', 'ADI', 'IEX', 'LH', 'AMGN', 'CTAS', 'IBM', 'STZ', 'NSC', 'DOV', 'ANET', 'AME', 'NDSN', 'DHR', 'LIN', 'CTAS', 'DRI'],
+    'Ticker 2': ['MAA', 'VRSN', 'NDSN', 'JBL', 'ODFL', 'MSCI', 'QCOM', 'RSG', 'MOH', 'SYK', 'HUBB', 'ZBRA', 'MSFT', 'GWW', 'TSCO', 'TMUS', 'SHW', 'WMT', 'PGR', 'HON'],
+    'Ratio Variance': [0.005718, 0.005133, 0.004253, 0.004090, 0.003839, 0.003498, 0.003237, 0.002821, 0.002727, 0.002554, 0.002547, 0.002400, 0.002009, 0.001832, 0.001695, 0.001329, 0.001023, 0.000782, 0.000750, 0.000740],
+    'Cointegration Test P-Value': [0.026953, 0.003023, 0.000741, 0.011188, 0.001841, 0.018063, 0.004475, 0.024894, 0.015033, 0.018365, 0.016497, 0.005069, 0.017830, 0.013301, 0.015155, 0.007882, 0.027492, 0.026370, 0.014683, 0.024686],
+    'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
+}
 
-profit = profit(paired_trades, df)
-print(profit)
+ranked_df = pd.DataFrame(data)
+df = generate_dataframes(ranked_df)
+total = 0
+z = 1.1
+ma = 200
+print("critical_z = ", z)
+print("ma = ", ma)
+for idx, df in enumerate(df):
+
+    signals_df, paired_trades = generate_signals(df, z, ma)
+    profit_df = profit(paired_trades, df)
+
+    ticker1_name = df['Ticker 1'].iloc[0]
+    ticker2_name = df['Ticker 2'].iloc[0]
+
+    percent = (profit_df['Cumulative_Return'].iloc[-1] - 1)*100
+    total += percent
+
+    print(f"{idx + 1}  {ticker1_name}/{ticker2_name}: {percent:.2f}% ({((percent/100 + 1) ** (1/7) - 1) * 100:.2f}%)")
+
+print("*"*50)
+print(f"Average Return Across 20 Holdings: {total/20:.2f}%")
+print(f"CAGR: {(((total/20)/100 + 1) ** (1/7) - 1) * 100:.2f}%")
 
 
 
