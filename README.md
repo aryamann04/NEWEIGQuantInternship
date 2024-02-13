@@ -1,7 +1,5 @@
 # Cointegrated Equity Pairs Trading
 
-**Aryaman Nagpal**
-
 01/30/2024: 
 [Initial Proposal Presentation](https://github.com/aryamann04/NEWEIGQuantInternship/files/14254910/Quant.Initial.Proposal.pdf)
 
