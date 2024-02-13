@@ -1,70 +1,74 @@
-import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from BuySellSignals import generate_dataframes, generate_signals, profit
-from CointegrationTests import rank_var
-import datetime
 
-results = [('AMGN', 'AAPL', 0.002674, 76)]
-ranked_df = rank_var(results)
-df_example = generate_dataframes(ranked_df)[0]
+data = {
+    'Ticker 1': ['MLM', 'IBM', 'KLAC', 'ETN', 'ADI', 'IEX', 'LH', 'AMGN', 'CTAS', 'IBM', 'STZ', 'NSC', 'DOV', 'ANET', 'AME', 'NDSN', 'DHR', 'LIN', 'CTAS', 'DRI'],
+    'Ticker 2': ['PH', 'VRSN', 'NDSN', 'JBL', 'ODFL', 'MSCI', 'QCOM', 'RSG', 'MOH', 'SYK', 'HUBB', 'ZBRA', 'MSFT', 'GWW', 'TSCO', 'TMUS', 'SHW', 'WMT', 'PGR', 'HON'],
+    'Ratio Variance': [0.005718, 0.005133, 0.004253, 0.004090, 0.003839, 0.003498, 0.003237, 0.002821, 0.002727, 0.002554, 0.002547, 0.002400, 0.002009, 0.001832, 0.001695, 0.001329, 0.001023, 0.000782, 0.000750, 0.000740],
+    'Cointegration Test P-Value': [0.026953, 0.003023, 0.000741, 0.011188, 0.001841, 0.018063, 0.004475, 0.024894, 0.015033, 0.018365, 0.016497, 0.005069, 0.017830, 0.013301, 0.015155, 0.007882, 0.027492, 0.026370, 0.014683, 0.024686],
+    'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
+}
+#strategy parameters
+z = 1.5
+ma = 50
+#index of pair in data to plot
+n = 1
 
-#=========================================================================#
-#Plotting Results#
-#=========================================================================#
+ranked_df = pd.DataFrame(data)
+df = generate_dataframes(ranked_df)
+signals_df, paired_trades = generate_signals(df[n], z, ma) #Corresponding to ANET/GWW
+profit_df = profit(paired_trades, df[n])
 
-signals, pairs = generate_signals(df_example)
-ratios = signals['Ratio standardized']
-fig, ax = plt.subplots(figsize=(12, 8))
+def plot_cumulative_return(profit_df, df, z, ma):
 
-ax.plot(ratios.index, ratios, label="Z-Score", color='black')
-ax.scatter(signals.index[signals['orders_ticker1'] == 1], ratios[signals['orders_ticker1'] == 1], marker='^', color='green', label='Buy Signal')
-ax.scatter(signals.index[signals['orders_ticker1'] == -1], ratios[signals['orders_ticker1'] == -1], marker='v', color='red', label='Sell Signal')
+    ticker1_name = df['Ticker 1'].iloc[-1]
+    ticker2_name = df['Ticker 2'].iloc[-1]
 
-ax.axhline(1.5, color="green", linestyle='--', label="Upper Threshold (1.5)")
-ax.axhline(-1.5, color="red", linestyle='--', label="Lower Threshold (-1.5)")
-ax.axhline(0, color="black", linestyle='--', label="Mean")
+    profit_df['Date1'] = pd.to_datetime(profit_df['Date1'])
+    profit_df['Date2'] = pd.to_datetime(profit_df['Date2'])
 
-ax.set_title('AMGN/AAPL: Price Ratio Z-Score', fontsize=18)
-ax.set_xlabel('Date')
-ax.set_ylabel('Price Ratio Z-Score')
+    plt.figure(figsize=(12, 6))
+    plt.plot(profit_df['Date2'], profit_df['Cumulative_Return'], label='Cumulative Return', color='black')
 
-start_date = datetime.datetime(2022, 1, 1)
-end_date = datetime.datetime(2023, 1, 1)
+    min_return = profit_df['Cumulative_Return'].min()
+    min_return_index = profit_df['Cumulative_Return'].idxmin()
+    min_return_date = profit_df['Date2'].loc[min_return_index]
 
-ax.set_xlim(start_date, end_date)
+    end_return = profit_df['Cumulative_Return'].iloc[-1]
 
-ax.legend()
-plt.tight_layout()
+    plt.text(min_return_date, min_return, f'{min_return:.4f}', verticalalignment='bottom', color='red')
+    plt.text(profit_df['Date2'].iloc[-1], end_return, f'{end_return:.4f}', verticalalignment='bottom', color='blue')
 
-fig, ax2 = plt.subplots(figsize=(12, 8))
-buy_signals1 = signals[signals['orders_ticker1'] == 1]
-sell_signals1 = signals[signals['orders_ticker1'] == -1]
-ax2.plot(df_example.index, df_example['Raw Price Data 1'], label='AMGN', color='black')
-ax2.set_ylabel('Price', color='black')
-ax2.tick_params('y', colors='black')
-ax2.scatter(buy_signals1.index, df_example['Raw Price Data 1'].loc[buy_signals1.index], color='green', marker='^', label='Buy Signal')
-ax2.scatter(sell_signals1.index, df_example['Raw Price Data 1'].loc[sell_signals1.index], color='red', marker='v', label='Sell Signal')
-ax2.legend(loc='upper left')
-ax2.set_xlim(start_date, end_date)
-ax2.set_ylim(215, 295)
-ax2.set_title('AMGN: Price and Signals, 2022', fontsize=18)
+    plt.title(f"Cumulative Return for 1.0 Units Invested In {ticker1_name}/{ticker2_name} (with z = {z} and ma = {ma})")
+    plt.xlabel("Date")
+    plt.ylabel("Cumulative Return")
+    plt.legend()
+    plt.show()
 
-plt.tight_layout()
+def plot_ratio(signals_df, df, z, ma):
 
-fig, ax3 = plt.subplots(figsize=(12, 8))
-buy_signals2 = signals[signals['orders_ticker2'] == 1]
-sell_signals2 = signals[signals['orders_ticker2'] == -1]
-ax3.plot(df_example.index, df_example['Raw Price Data 2'], label='AAPL', color='black')
-ax3.set_ylabel('Price', color='black')
-ax3.tick_params('y', colors='black')
-ax3.scatter(buy_signals2.index, df_example['Raw Price Data 2'].loc[buy_signals2.index], color='green', marker='^', label='Buy Signal')
-ax3.scatter(sell_signals2.index, df_example['Raw Price Data 2'].loc[sell_signals2.index], color='red', marker='v', label='Sell Signal')
-ax3.legend(loc='upper left')
-ax3.set_xlim(start_date, end_date)
-ax3.set_ylim(125,190)
-ax3.set_title('AAPL: Price and Signals, 2022', fontsize=18)
+    ticker1_name = df['Ticker 1'].iloc[-1]
+    ticker2_name = df['Ticker 2'].iloc[-1]
 
-plt.tight_layout()
+    plt.figure(figsize=(12, 6))
+    plt.plot(signals_df.index, signals_df['Ratio standardized'], label=f'{ma}-day Standardized Price Ratio', color='black')
+    plt.axhline(y=z, color='r', linestyle='--', label=f'Upper Critical Value ({z})')
+    plt.axhline(y=-z, color='g', linestyle='--', label=f'Lower Critical Value ({-z})')
 
-plt.show()
+    buy_signals = signals_df[signals_df['orders_ticker1'] == 1]
+    sell_signals = signals_df[signals_df['orders_ticker1'] == -1]
+
+    plt.scatter(buy_signals.index, buy_signals['Ratio standardized'], marker='^', color='g', label='Buy Signal')
+    plt.scatter(sell_signals.index, sell_signals['Ratio standardized'], marker='v', color='r', label='Sell Signal')
+
+    plt.title(f"Ratio Z-Score and Critical Values for {ticker1_name}/{ticker2_name}")
+    plt.xlabel("Date")
+    plt.ylabel("Ratio Z-Score")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+plot_cumulative_return(profit_df, df[n], z, ma)
+plot_ratio(signals_df, df[n], z, ma)
+
