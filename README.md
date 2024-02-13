@@ -1,6 +1,5 @@
+#Cointegrated Equity Pairs Trading
 
-
-Aryaman Nagpal  
 Jan-Feb 2024
 
 01/30/2024: 
