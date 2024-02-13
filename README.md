@@ -1,6 +1,6 @@
 # Cointegrated Equity Pairs Trading
 
-Jan-Feb 2024
+**Jan-Feb 2024**
 
 01/30/2024: 
 [Initial Proposal Presentation](https://github.com/aryamann04/NEWEIGQuantInternship/files/14254910/Quant.Initial.Proposal.pdf)
