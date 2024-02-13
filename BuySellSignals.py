@@ -99,10 +99,11 @@ def profit(trades_df, price_df):
             buy = price_df.loc[date1, 'Raw Price Data 2']
             sell = price_df.loc[date2, 'Raw Price Data 2']
 
-        pair_profit = (sell / buy - 1) + (short / cover - 1)
+        pair_profit = ((sell / buy - 1) + (short / cover - 1))/2
         trades_df.at[index, 'Pair_Profit'] = pair_profit
         cumulative_return = trades_df['Cumulative_Return'].iloc[index - 1] * (1 + pair_profit)
         trades_df.at[index, 'Cumulative_Return'] = cumulative_return
+        trades_df['Win Rate'] = np.where(trades_df['Pair_Profit'] > 0, 1, 0)
 
     return trades_df
 pd.set_option('display.max_rows', None)  # Show all rows
@@ -129,36 +130,39 @@ data = {
     'Cointegration Test P-Value': [0.026953, 0.003023, 0.000741, 0.011188, 0.001841, 0.018063, 0.004475, 0.024894, 0.015033, 0.018365, 0.016497, 0.005069, 0.017830, 0.013301, 0.015155, 0.007882, 0.027492, 0.026370, 0.014683, 0.024686],
     'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
 }
-
 ranked_df = pd.DataFrame(data)
-df = generate_dataframes(ranked_df)
+df_list = generate_dataframes(ranked_df)
 
 #parameters for signal generation
-z = 1.1
-ma = 25
-print("critical_z = ", z)
-print("ma = ", ma)
+z = 1.5
+ma = 50
 
-total = 0
+total_return = 0
 total_sharpe = 0
-for idx, df in enumerate(df):
-
+win_rate = 0
+num_trades = 0
+for idx, df in enumerate(df_list):
     signals_df, paired_trades = generate_signals(df, z, ma)
     profit_df = profit(paired_trades, df)
     ticker1_name = df['Ticker 1'].iloc[0]
     ticker2_name = df['Ticker 2'].iloc[0]
-    percent = (profit_df['Cumulative_Return'].iloc[-1] - 1)*100
-    total += percent
-
-    print(f"{idx + 1}  {ticker1_name}/{ticker2_name}: {percent:.2f}% ({((percent/100 + 1) ** (1/7) - 1) * 100:.2f}%)")
+    percent = (profit_df['Cumulative_Return'].iloc[-1] - 1) * 100
+    total_return += percent
+    win_rate += profit_df['Win Rate'].mean()
+    print(f"{idx + 1}  {ticker1_name}/{ticker2_name}: {percent:.2f}% ({((percent / 100 + 1) ** (1 / 7) - 1) * 100:.2f}%)")
     sharpe_ratio = sharpe(profit_df)
     total_sharpe += sharpe_ratio
-    print(f"Sharpe Ratio: {sharpe_ratio:.3f}")
+    num_trades += len(profit_df['Cumulative_Return'])
+    print(f"Sharpe Ratio: {sharpe_ratio:.3f}\n")
 
-print("*"*50)
-print(f"Average Return Across 20 Holdings: {total/20:.2f}%")
-print(f"CAGR: {(((total/20)/100 + 1) ** (1/7) - 1) * 100:.2f}%")
-print(f"Average Sharpe Ratio: {total_sharpe/20:.3f}")
+print("*" * 50)
+print(f"Average Return Across 20 Pairs: {total_return / 20:.2f}%")
+print(f"CAGR: {(((total_return / 20) / 100 + 1) ** (1 / 7) - 1) * 100:.2f}%")
+print(f"Average Sharpe Ratio: {total_sharpe / 20:.3f}")
+print(f"Average Win Rate: {100*win_rate/20:.2f}%")
+print(f"Average Days per Trade: {(250*7)/num_trades:.2f}")
+
+
 
 
 
