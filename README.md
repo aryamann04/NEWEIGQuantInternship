@@ -1,4 +1,4 @@
-#Cointegrated Equity Pairs Trading
+# Cointegrated Equity Pairs Trading
 
 Jan-Feb 2024
 
