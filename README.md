@@ -11,3 +11,14 @@
 
 02/13/2024: 
 [Report 2](https://github.com/aryamann04/NEWEIGQuantInternship/files/14271497/Week.3.Report.pptx.pdf)
+
+02/19/2024: 
+[Report 3](https://github.com/aryamann04/NEWEIGQuantInternship/files/14582839/Week.4.Report.pptx.pdf)
+
+
+03/05/2024:
+[Report 4](https://github.com/aryamann04/NEWEIGQuantInternship/files/14582841/Week.5.Report.pptx.pdf)
+
+03/12/2024: 
+[Report 5](https://github.com/aryamann04/NEWEIGQuantInternship/files/14582848/Week.6.Report.pptx.pdf)
+
