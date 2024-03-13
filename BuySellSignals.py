@@ -1,8 +1,13 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from PreSelectionTests import clean_price_data
 
+from PreSelectionTests import clean_price_data
+pd.set_option('display.max_rows', None)
+
+#----------------------------------------------------#
+#  Method to generate price data for selected pairs  #
+#----------------------------------------------------#
 def generate_dataframes(df):
     dataframes = []
 
@@ -30,9 +35,13 @@ def generate_dataframes(df):
             dataframes.append(result_df)
 
     return dataframes
-
+#----------------------------------------------------#
+# Generate signals based on initial z-score strategy:#
+#                                                    #
+#  sell if the ratio z-score crosses above a preset  #
+#  value, buy if below                               #
+#----------------------------------------------------#
 def generate_signals(df, z, ma):
-
     ticker1_ts = df['Raw Price Data 1']
     ticker2_ts = df['Raw Price Data 2']
 
@@ -42,7 +51,7 @@ def generate_signals(df, z, ma):
     z_scores = (ratios - ratios_mean) / ratios_std
     ratio_std = z_scores.copy()
 
-    z_scores = np.where(z_scores > z, 1, np.where(z_scores < -1*z, -1, 0))
+    z_scores = np.where(z_scores > z, 1, np.where(z_scores < -1 * z, -1, 0))
 
     signals_df = pd.DataFrame(index=ticker1_ts.index)
     signals_df['signal_ticker1'] = z_scores * -1
@@ -74,13 +83,15 @@ def generate_signals(df, z, ma):
             'Holding Period': holding_period
         })
 
-        pairsdf = pd.DataFrame(pairs)
+    pairs_df = pd.DataFrame(pairs)
 
-    return signals_df, pairsdf
+    return signals_df, pairs_df
 
+#----------------------------------------------------#
+#              Profit Calculation                    #
+#----------------------------------------------------#
 
 def profit(trades_df, price_df):
-
     trades_df['Pair_Profit'] = 0.0
     trades_df['Cumulative_Return'] = 1.0
 
@@ -106,64 +117,11 @@ def profit(trades_df, price_df):
         trades_df['Win Rate'] = np.where(trades_df['Pair_Profit'] > 0, 1, 0)
 
     return trades_df
-pd.set_option('display.max_rows', None)  # Show all rows
 
-def sharpe(profit_df):
-    #define risk free rate as current 7y treasury yield
-    rf = 4.17
+def leveraged_profit(profit_df, leverage_ratio):
 
-    profit_df['Date1'] = pd.to_datetime(profit_df['Date1'])
-    profit_df['Year'] = profit_df['Date1'].dt.year
-    annual_returns = profit_df.groupby('Year')['Cumulative_Return'].last().pct_change() * 100
-    if 2017 in profit_df['Year'].unique():
-         annual_returns.loc[2017] = (profit_df.loc[profit_df['Year'] == 2017, 'Cumulative_Return'].iloc[-1] - 1) * 100
-    excess_returns = annual_returns - rf
-    sharpe_ratio = excess_returns.mean() / excess_returns.std()
+    leveraged_df = profit_df.copy()
+    leveraged_df['Pair_Profit'] = leveraged_df['Pair_Profit'] * leverage_ratio
+    leveraged_df['Cumulative_Return'] = (1 + leveraged_df['Pair_Profit']).cumprod()
 
-    return sharpe_ratio
-
-#results from screening and pre-selection/cointegration tests
-data = {
-    'Ticker 1': ['MLM', 'IBM', 'KLAC', 'ETN', 'ADI', 'IEX', 'LH', 'AMGN', 'CTAS', 'IBM', 'STZ', 'NSC', 'DOV', 'ANET', 'AME', 'NDSN', 'DHR', 'LIN', 'CTAS', 'DRI'],
-    'Ticker 2': ['PH', 'VRSN', 'NDSN', 'JBL', 'ODFL', 'MSCI', 'QCOM', 'RSG', 'MOH', 'SYK', 'HUBB', 'ZBRA', 'MSFT', 'GWW', 'TSCO', 'TMUS', 'SHW', 'WMT', 'PGR', 'HON'],
-    'Ratio Variance': [0.005718, 0.005133, 0.004253, 0.004090, 0.003839, 0.003498, 0.003237, 0.002821, 0.002727, 0.002554, 0.002547, 0.002400, 0.002009, 0.001832, 0.001695, 0.001329, 0.001023, 0.000782, 0.000750, 0.000740],
-    'Cointegration Test P-Value': [0.026953, 0.003023, 0.000741, 0.011188, 0.001841, 0.018063, 0.004475, 0.024894, 0.015033, 0.018365, 0.016497, 0.005069, 0.017830, 0.013301, 0.015155, 0.007882, 0.027492, 0.026370, 0.014683, 0.024686],
-    'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
-}
-ranked_df = pd.DataFrame(data)
-df_list = generate_dataframes(ranked_df)
-
-#parameters for signal generation
-z = 1.5
-ma = 50
-
-total_return = 0
-total_sharpe = 0
-win_rate = 0
-num_trades = 0
-for idx, df in enumerate(df_list):
-    signals_df, paired_trades = generate_signals(df, z, ma)
-    profit_df = profit(paired_trades, df)
-    ticker1_name = df['Ticker 1'].iloc[0]
-    ticker2_name = df['Ticker 2'].iloc[0]
-    percent = (profit_df['Cumulative_Return'].iloc[-1] - 1) * 100
-    total_return += percent
-    win_rate += profit_df['Win Rate'].mean()
-    print(f"{idx + 1}  {ticker1_name}/{ticker2_name}: {percent:.2f}% ({((percent / 100 + 1) ** (1 / 7) - 1) * 100:.2f}%)")
-    sharpe_ratio = sharpe(profit_df)
-    total_sharpe += sharpe_ratio
-    num_trades += len(profit_df['Cumulative_Return'])
-    print(f"Sharpe Ratio: {sharpe_ratio:.3f}\n")
-
-print("*" * 50)
-print(f"Average Return Across 20 Pairs: {total_return / 20:.2f}%")
-print(f"CAGR: {(((total_return / 20) / 100 + 1) ** (1 / 7) - 1) * 100:.2f}%")
-print(f"Average Sharpe Ratio: {total_sharpe / 20:.3f}")
-print(f"Average Win Rate: {100*win_rate/20:.2f}%")
-print(f"Average Days per Trade: {(250*7)/num_trades:.2f}")
-
-
-
-
-
-
+    return leveraged_df
