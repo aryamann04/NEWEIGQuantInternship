@@ -23,12 +23,19 @@ def variance(portfolio_df):
     portfolio_returns = portfolio_df['Daily_Return'].dropna()
     variance_value = portfolio_returns.var() * 252  # Annualizing variance
 
-    return f"{variance_value:.3f}"
+    return f"{variance_value:.3e}"
 
 def var(portfolio_df):
     portfolio_returns = portfolio_df['Daily_Return'].dropna()
     var_value = np.percentile(portfolio_returns, 5) * 100  # Convert to percentage
     return f"{var_value:.2f}%"
+
+def cvar(portfolio_df):
+    portfolio_returns = portfolio_df['Daily_Return'].dropna()
+    var_percentile = np.percentile(portfolio_returns, 5)
+    cvar_returns = portfolio_returns[portfolio_returns <= var_percentile]
+    cvar_value = np.mean(cvar_returns) * 100  # Convert to percentage
+    return f"{cvar_value:.2f}%"
 
 def win_rate(portfolio_df):
     non_zero_returns_df = portfolio_df[portfolio_df['Daily_Return'] != 0]
@@ -45,14 +52,28 @@ def cagr(portfolio_df):
 
     return formatted_cagr
 
+
+def beta(portfolio_df):
+    sp500_returns = get_sp500_returns()
+    merged_df = pd.merge(portfolio_df[['Date', 'Daily_Return']], sp500_returns, left_on='Date', right_index=True,
+                         how='inner')
+    merged_df.dropna(inplace=True)
+    covariance = np.cov(merged_df['Daily_Return'], merged_df['Adj Close'])[0, 1]
+    sp500_variance = np.var(merged_df['Adj Close'])
+    beta = covariance / sp500_variance
+
+    return f"{beta:.2e}"
+
 def performance(portfolio_df):
 
     performance_dict = {
         "Sharpe Ratio": sharpe(portfolio_df),
         "Variance": variance(portfolio_df),
         "Value at Risk (VaR)": var(portfolio_df),
+        "Conditional Value at Risk (cVaR)": cvar(portfolio_df),
         "Win Rate": win_rate(portfolio_df),
-        "CAGR": cagr(portfolio_df)
+        "Beta": beta(portfolio_df),
+         "CAGR": cagr(portfolio_df)
     }
 
     print("\nPerformance Metrics:")
@@ -60,6 +81,3 @@ def performance(portfolio_df):
         print(f"{metric}: {value}")
 
     return performance_dict
-
-
-
