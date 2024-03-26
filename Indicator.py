@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import math
 
 def calculate_rsi(prices, period):
     delta = prices.diff()
@@ -17,21 +18,19 @@ def calculate_indicator(df, lookback_window):
     ticker1_prices = df['Raw Price Data 1']
     ticker2_prices = df['Raw Price Data 2']
 
-    # Calculate  ratio z-scores
+    # Calculate ratio z-scores
     ratios = ticker1_prices / ticker2_prices
     ratios_mean = ratios.rolling(window=lookback_window, min_periods=1, center=False).mean()
     ratios_std = ratios.rolling(window=lookback_window, min_periods=1, center=False).std()
     z_scores = (ratios - ratios_mean) / ratios_std
-    indicator_z_score = (1 / (1 + np.exp(-z_scores))) # Normalize from 0 to 1
+    indicator_z_score = (1 / (1 + np.exp(-z_scores)))  # Normalize from 0 to 1
 
     # Calculate RSI difference for each ticker
     rsi_ticker1 = calculate_rsi(ticker1_prices, lookback_window)
     rsi_ticker2 = calculate_rsi(ticker2_prices, lookback_window)
+    rsi_difference = (1 / (1 + np.exp(-1*(rsi_ticker1 - rsi_ticker2) / 10 )))  # Normalize RSI difference from 0 to 1
 
-    rsi_difference = 1 / (1 + np.exp(-1*((rsi_ticker1 - rsi_ticker2) / 100)))  # Normalize RSI difference from 0 to 1
-
-    # Combine z-score and RSI difference with weighted average
-    combined_indicator = 100 * (0.20 * indicator_z_score + 0.80 * rsi_difference)
+    combined_indicator = 100 * (0.5 * indicator_z_score + 0.5 * rsi_difference)
 
     return combined_indicator
 
