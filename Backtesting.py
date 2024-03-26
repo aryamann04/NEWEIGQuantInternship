@@ -4,8 +4,8 @@ import yfinance as yf
 from matplotlib import pyplot as plt
 
 from BuySellSignals import generate_dataframes, generate_signals, profit, leveraged_profit
-from Indicator import generate_signals_indicator
-from PerformanceMetrics import performance, get_sp500_returns
+from Indicator import generate_signals_indicator, calculate_indicator
+from PerformanceMetrics import performance
 
 #----------------------------------------------------#
 #                   Data set-up                      #
@@ -20,48 +20,57 @@ data = {
     'Ranking': [191, 372, 288, 345, 136, 318, 204, 314, 146, 116, 390, 59, 85, 69, 322, 138, 22, 222, 364, 379]
 }
 
-# results from leveraged etf screening
-selected_leveraged_etfs = {
-    'Ticker 1': ['UGL', 'QTJA', 'IWML', 'SCDL', 'USML', 'UPW', 'IWDL', 'IWDL', 'SCDL', 'BDCX', 'IWDL', 'SCDL', 'YCL', 'SCDL', 'IWDL', 'SCDL', 'IWML', 'OOTO', 'IWML', 'IWML', 'TSLR', 'XNOV', 'IWFL', 'YCS', 'XNOV'],
-    'Ticker 2': ['BRZU', 'UVIX', 'CLDL', 'UBOT', 'SKYU', 'EDC', 'MVRL', 'OOTO', 'IWML', 'TPOR', 'YCS', 'AGQ', 'LABU', 'HDLB', 'YCL', 'BIB', 'UBT', 'EFO', 'UJB', 'MVV', 'XOCT', 'MIDU', 'TSLT', 'XNOV', 'XSEP'],
-    'Ratio Variance': [4.158846e-02, 4.023644e-02, 3.394557e-02, 2.900719e-02, 2.761149e-02, 2.093654e-02, 1.086024e-02, 1.030949e-02, 6.830283e-03, 5.698188e-03, 4.990621e-03, 4.928351e-03, 4.674838e-03, 4.496338e-03, 3.381513e-03, 2.444474e-03, 1.926844e-03, 1.793360e-03, 1.646905e-03, 1.295539e-03, 8.186826e-04, 5.823167e-04, 3.697803e-04, 1.679705e-04, 5.175549e-08],
-    'Cointegration Test P-Value': [0.008838, 0.005535, 0.021283, 0.013456, 0.029612, 0.025566, 0.022467, 0.013931, 0.007788, 0.006544, 0.008969, 0.015294, 0.015965, 0.011691, 0.008482, 0.011781, 0.009071, 0.013513, 0.006073, 0.013454, 0.002283, 0.007315, 0.004888, 0.000045, 0.013690],
-    'Ranking': [229, 167, 45, 410, 122, 400, 147, 13, 313, 112, 37, 81, 70, 46, 370, 177, 351, 380, 226, 76, 18, 30, 206, 372, 352]
-}
-
 ranked_df = pd.DataFrame(data)
 df_list = generate_dataframes(ranked_df)
 
-ranked_df_etf = pd.DataFrame(selected_leveraged_etfs)
-df_list_etf = generate_dataframes(ranked_df_etf)
+# results from commodities screening
+selected_commodity = {
+    'Ticker 1': ['PPLT', 'WEAT', 'CORN', 'CORN', 'CPER', 'WEAT', 'BCIM'],
+    'Ticker 2': ['PALL', 'UNL', 'DBB', 'USL', 'SLV', 'DBB', 'DBB'],
+    'Ratio Variance': [0.004637, 0.003130, 0.002529, 0.002384, 0.001787, 0.001783, 0.000063],
+    'Cointegration Test P-Value': [0.120510, 0.007510, 0.153944, 0.111754, 0.212381, 0.069488, 0.054788],
+    'Ranking': [34, 18, 8, 81, 1, 3, 64]
+}
 
+ranked_df_commodity = pd.DataFrame(selected_commodity)
+df_list_commodity = generate_dataframes(ranked_df_commodity)
 
-def plot_cumulative_return(profit_df, df, z, ma):
+def plot_indicator_strategy(price_df, signals_df, indicator_lower_bound, indicator_upper_bound, show_one_year=True):
+    fig, ax1 = plt.subplots()
 
-    ticker1_name = df['Ticker 1'].iloc[-1]
-    ticker2_name = df['Ticker 2'].iloc[-1]
+    color = 'black'  # Change the color of the price ratio line to black
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Price Ratio', color=color)
+    ax1.plot(price_df.index, price_df['Raw Price Data 1'] / price_df['Raw Price Data 2'], color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.set_ylim([price_df['Raw Price Data 1'].min() / price_df['Raw Price Data 2'].max(), price_df['Raw Price Data 1'].max() / price_df['Raw Price Data 2'].min()])  # Adjust y-axis limits
 
-    profit_df['Date1'] = pd.to_datetime(profit_df['Date1'])
-    profit_df['Date2'] = pd.to_datetime(profit_df['Date2'])
+    ax2 = ax1.twinx()
+    color = 'tab:blue'
+    ax2.set_ylabel('Indicator', color=color)
+    ax2.plot(signals_df.index, signals_df['Indicator'], color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
 
-    plt.figure(figsize=(12, 6))
-    plt.plot(profit_df['Date2'], profit_df['Cumulative_Return'], label='Cumulative Return', color='black')
+    ax2.axhline(y=indicator_lower_bound, color='gray', linestyle='--')
+    ax2.axhline(y=indicator_upper_bound, color='gray', linestyle='--')
 
-    min_return = profit_df['Cumulative_Return'].min()
-    min_return_index = profit_df['Cumulative_Return'].idxmin()
-    min_return_date = profit_df['Date2'].loc[min_return_index]
+    for index, row in signals_df.iterrows():
+        if row['orders_ticker1'] == 1:
+            ax1.scatter(index, price_df.loc[index, 'Raw Price Data 1'] / price_df.loc[index, 'Raw Price Data 2'], color='green', marker='^')
+        elif row['orders_ticker2'] == 1:
+            ax1.scatter(index, price_df.loc[index, 'Raw Price Data 1'] / price_df.loc[index, 'Raw Price Data 2'], color='red', marker='v')
 
-    end_return = profit_df['Cumulative_Return'].iloc[-1]
+    if show_one_year:
+        ax1.set_xlim(pd.Timestamp('2023-01-01'), pd.Timestamp('2024-01-01'))
 
-    plt.text(min_return_date, min_return, f'{min_return:.4f}', verticalalignment='bottom', color='red')
-    plt.text(profit_df['Date2'].iloc[-1], end_return, f'{end_return:.4f}', verticalalignment='bottom', color='blue')
-
-    plt.title(f"Cumulative Return for 1.0 Units Invested In {ticker1_name}/{ticker2_name} (with z = {z} and ma = {ma})")
-    plt.xlabel("Date")
-    plt.ylabel("Cumulative Return")
-    plt.legend()
+    fig.tight_layout()
+    plt.title(f"{price_df['Ticker 1'].iloc[0]}/{price_df['Ticker 2'].iloc[0]} Indicator Strategy")
     plt.show()
 
+# df = df_list[1]
+# signals, paired_trades = generate_signals_indicator(df, 40, 60, 50)
+# profit = profit(paired_trades, df)
+# plot_indicator_strategy(df, signals, 40, 60)
 #----------------------------------------------------#
 # Run strategy function:                             #
 #                                                    #
@@ -155,14 +164,8 @@ def plot_portfolio_value(portfolio_df):
 #                  Strategy Test                     #
 #----------------------------------------------------#
 
-indicator_portfolio = run_strategy(50, df_list, use_indicator_strategy=True, lower_bound=10, upper_bound=40)
+indicator_portfolio = run_strategy(50, df_list, use_indicator_strategy=True, lower_bound=45, upper_bound=55)
 zscore_portfolio = run_strategy(50, df_list, use_initial_z_score=True, z_value = 1.5)
-
-indicator_portfolio_leveraged_etf = run_strategy(50, df_list_etf, use_indicator_strategy=True, lower_bound=10, upper_bound=40)
-zscore_portfolio_leveraged_etf = run_strategy(50, df_list_etf, use_initial_z_score=True, z_value = 1.5)
-
-indicator_portfolio_leveraged = run_strategy(50, df_list, use_leverage=True, leverage_ratio=3, use_indicator_strategy=True, lower_bound=10, upper_bound=40)
-zscore_portfolio_leveraged = run_strategy(50, df_list, use_leverage= True, leverage_ratio=3, use_initial_z_score=True, z_value=1.5)
 
 #----------------------------------------------------#
 #          Printing Performance of Backtest          #
@@ -171,12 +174,6 @@ zscore_portfolio_leveraged = run_strategy(50, df_list, use_leverage= True, lever
 performance(indicator_portfolio)
 performance(zscore_portfolio)
 
-performance(indicator_portfolio_leveraged_etf)
-performance(zscore_portfolio_leveraged_etf)
-
-performance(indicator_portfolio_leveraged)
-performance(zscore_portfolio_leveraged)
-
 #----------------------------------------------------#
 #          Plotting Performance of Backtest          #
 #----------------------------------------------------#
@@ -184,8 +181,80 @@ performance(zscore_portfolio_leveraged)
 plot_portfolio_value(indicator_portfolio)
 plot_portfolio_value(zscore_portfolio)
 
-plot_portfolio_value(indicator_portfolio_leveraged_etf)
-plot_portfolio_value(zscore_portfolio_leveraged_etf)
+#----------------------------------------------------#
+#               Parameter Optimization               #
+#----------------------------------------------------#
 
-plot_portfolio_value(indicator_portfolio_leveraged)
-plot_portfolio_value(zscore_portfolio_leveraged)
+# current method optimizes upperbound/lowerbound values for the indicator strategy
+def optimize_params(df_list, optimize_for_sharpe=False, use_indicator_strategy=False):
+    best_lower_bound = None
+    best_upper_bound = None
+    best_metric_value = float('-inf') if optimize_for_sharpe else float('-inf')
+    best_z_score = None
+    best_ma = None
+
+    if use_indicator_strategy:
+        lower_range = range(5, 35, 5)
+        upper_range = range(30, 55, 5)  # Ensure upper_bound > lower_bound
+
+        for lower_bound in lower_range:
+            for upper_bound in upper_range:
+                print(f"Testing Lower Bound: {lower_bound}, Upper Bound: {upper_bound}")
+
+                # Run the strategy with the current lower bound and upper bound
+                portfolio_df = run_strategy(50, df_list, use_indicator_strategy=True,
+                                            lower_bound=lower_bound, upper_bound=upper_bound)
+
+                # Calculate performance metrics
+                performance_dict = performance(portfolio_df)
+
+                # Extract the metric value (Sharpe ratio or CAGR) from the performance dictionary
+                metric_value = float(performance_dict["Sharpe Ratio"]) if optimize_for_sharpe else float(
+                    performance_dict["CAGR"])
+
+                # Update best parameters if a higher metric value is found
+                if metric_value > best_metric_value:
+                    best_lower_bound = lower_bound
+                    best_upper_bound = upper_bound
+                    best_metric_value = metric_value
+
+    else:
+        z_score_range = [x * 0.2 + 0.3 for x in range(1, 12, 1)]
+        ma_range = range(25, 200, 25)
+
+        for z_score in z_score_range:
+            for ma in ma_range:
+                print(f"Testing Z-Score: {z_score}, Moving Average: {ma}")
+
+                # Run the strategy with the current z-score and moving average
+                portfolio_df = run_strategy(ma, df_list, use_initial_z_score=True, z_value=z_score)
+
+                # Calculate performance metrics
+                performance_dict = performance(portfolio_df)
+
+                # Extract the metric value (Sharpe ratio or CAGR) from the performance dictionary
+                metric_value = float(performance_dict["Sharpe Ratio"]) if optimize_for_sharpe else float(
+                    performance_dict["CAGR"])
+
+                # Update best parameters if a higher metric value is found
+                if metric_value > best_metric_value:
+                    best_z_score = z_score
+                    best_ma = ma
+                    best_metric_value = metric_value
+
+    print("\nOptimization Result:")
+    if use_indicator_strategy:
+        print(f"Best Lower Bound: {best_lower_bound}")
+        print(f"Best Upper Bound: {best_upper_bound}")
+    else:
+        print(f"Best Z-Score: {best_z_score}")
+        print(f"Best Moving Average: {best_ma}")
+    print(f"Best Metric Value: {best_metric_value}")
+
+    return best_lower_bound, best_upper_bound if use_indicator_strategy else (best_z_score, best_ma)
+
+# optimize_params(df_list, use_indicator_strategy=True)
+# optimize_params(df_list, use_indicator_strategy=False)
+
+
+
