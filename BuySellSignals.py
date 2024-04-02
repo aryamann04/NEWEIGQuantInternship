@@ -90,7 +90,7 @@ def generate_signals(df, z, ma):
 #----------------------------------------------------#
 #              Profit Calculation                    #
 #----------------------------------------------------#
-def profit(trades_df, price_df, fee=0.01):
+def profit(trades_df, price_df, fee=0.001):
     trades_df['Pair_Profit'] = 0.0
     trades_df['Cumulative_Return'] = 1.0
     position_b = 1
@@ -98,19 +98,19 @@ def profit(trades_df, price_df, fee=0.01):
         date1 = pd.to_datetime(row['Date1'], format='%m-%d-%Y')
         date2 = pd.to_datetime(row['Date2'], format='%m-%d-%Y')
         if row['TradeType'] == 'Long':
-            buy_a = price_df.loc[date1, 'Raw Price Data 1']
+            buy_a = price_df.loc[date1, 'Raw Price Data 1'] * (1 + fee)
             sell_a = price_df.loc[date2, 'Raw Price Data 1']
             short_b = price_df.loc[date1, 'Raw Price Data 2']
-            cover_b = price_df.loc[date2, 'Raw Price Data 2']
+            cover_b = price_df.loc[date2, 'Raw Price Data 2'] * (1 + fee)
             # position_b = buy_a / short_b
-            pair_profit = ((sell_a / buy_a - 1) + (position_b * (1 - cover_b / short_b))) / 2
+            pair_profit = ((sell_a / buy_a - 1) + (position_b * (1 - cover_b / short_b)))
         else:
             short_a = price_df.loc[date1, 'Raw Price Data 1']
-            cover_a = price_df.loc[date2, 'Raw Price Data 1']
-            buy_b = price_df.loc[date1, 'Raw Price Data 2']
+            cover_a = price_df.loc[date2, 'Raw Price Data 1'] * (1 + fee)
+            buy_b = price_df.loc[date1, 'Raw Price Data 2'] * (1 + fee)
             sell_b = price_df.loc[date2, 'Raw Price Data 2']
             # position_b = short_a / buy_b
-            pair_profit = ((position_b * (sell_b / buy_b) - 1) + (1 - cover_a / short_a)) / 2
+            pair_profit = ((position_b * (sell_b / buy_b) - 1) + (1 - cover_a / short_a))
 
 
         trades_df.at[index, 'Pair_Profit'] = pair_profit
@@ -127,5 +127,3 @@ def leveraged_profit(profit_df, leverage_ratio):
     leveraged_df['Cumulative_Return'] = (1 + leveraged_df['Pair_Profit']).cumprod()
 
     return leveraged_df
-
-
