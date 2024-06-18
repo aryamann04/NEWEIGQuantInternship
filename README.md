@@ -4,6 +4,8 @@
 
 This project focuses on implementing a cointegrated pairs trading strategy using historical data of S&P 500 constituents. The goal is to identify pairs of securities that exhibit a cointegrated relationship and use this relationship to generate profitable trading signals. The strategy leverages the mean-reverting nature of cointegrated pairs to execute long and short positions based on the divergence and convergence of their price movements. 
 
+The project tests the strategy using both the traditional z-score method as well as a novel indicator I created which factors in Relative Strength Index values. Further explanation is given below. The key of this strategy is that it is market-neutral, signified by the market beta values close to 0, and in fact performs best duing market downturns. With a low standard deviation and variance of returns, the strategy is best implemented with leverage in order to outperform the market with a strong risk-return profile. 
+
 ## Repository Structure 
 
 - ```InitialScreening.py``` Queries Wikipedia to find current S&P 500 index constituents and filters them by basic fundamental criteria such as market capitalization, trailing EPS, and P/E ratio to find stable, large companies.
