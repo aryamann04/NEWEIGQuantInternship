@@ -30,10 +30,10 @@ With a critical z-score of 1.1 and a look-back moving average window of 175 days
 With a lower bound of 40 and upper bound of 52 and a look-back moving average window of 150 days, the strategy achieved a return of ***8.21%***, a market beta of ***0.00306***, and a Sharpe ratio of ***0.759***. The daily 95% VaR and cVaR achieved are ***-0.27%*** and ***-0.61%***. 
 
 ## View Reports 
-01/30/2024: 
+January 2024: 
 [Initial Proposal](https://github.com/aryamann04/NEWEIGQuantInternship/files/14254910/Quant.Initial.Proposal.pdf)
 
-04/02/2024: 
+May 2024: 
 [Latest Report](https://github.com/aryamann04/NEWEIGQuantInternship/files/14887638/Week.7.Report.pptx.pdf)
 
 A special thank you to the Quantitative Research team at New England Investment Consulting Group for giving me guidance and advice through the development of this project. 
