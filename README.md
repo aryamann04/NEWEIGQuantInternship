@@ -6,6 +6,11 @@ This project, completed during my internship at New England Investment Consultin
 
 The project tests the strategy using both the traditional z-score method as well as a novel indicator I created which factors in Relative Strength Index values. Further explanation is given below. The key of this strategy is that it is market-neutral, signified by the market beta values close to 0, and in fact performs best duing market downturns. With a low standard deviation and variance of returns, the strategy is best implemented with leverage in order to outperform the market with a strong risk-return profile. 
 
+As seen in the portfolio return shown below, the strategy greatly outperforms the market during downturns and, in general, is far more stable with less downside risk than investing in the market alone, making it the ideal candidate for a leverage strategy. The below plot shows the ***unleveraged*** returns of the pairs trading strategy with various moving averages, transaction costs included. 
+
+<img width="998" alt="Screen Shot 2024-04-02 at 6 10 35 PM" src="https://github.com/aryamann04/cointegrated-pairs-trading/assets/140534650/294130a0-a2dd-4b72-b25c-6790b42a5ac1">
+
+
 ## Repository Structure 
 
 - ```InitialScreening.py``` Queries Wikipedia to find current S&P 500 index constituents and filters them by basic fundamental criteria such as market capitalization, trailing EPS, and P/E ratio to find stable, large companies.
